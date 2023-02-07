@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app
+
+  Sample SAM Template for sam-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+    Environment:
+      Variables:
+        MongoUrl: !Ref MongoUrl
+        RedisHost: !Ref RedisHost
+Parameters:
+  MongoUrl:
+    Type: String
+  RedisHost:
+    Type: String      
+  Env:
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod                      
+
+Resources:
+
+  AuthenticateApiKeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: authenticate1.handler
+      Runtime: nodejs16.x
+      Architectures:
+      - x86_64      
+      Events:
+        ApiKeyAuth:
+          Type: Api
+          Properties:
+            Path: /authenticate
+            Method: GET
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        # Sourcemap: true # Enabling source maps will create the required NODE_OPTIONS environment variables on your lambda function during sam build
+        EntryPoints:
+        - authenticate1.ts 
+
+
+  AuthApiKeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: auth.handler
+      Runtime: nodejs16.x
+      Architectures:
+      - x86_64      
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        # Sourcemap: true # Enabling source maps will create the required NODE_OPTIONS environment variables on your lambda function during sam build
+        EntryPoints:
+        - auth.js 
+
+       
+
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        DefaultAuthorizer: MyLambdaRequestAuth
+        Authorizers:
+          MyLambdaRequestAuth:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt AuthApiKeyFunction.Arn
+            Identity:
+              Headers:
+                - x-api-key
+ 
+      
+  HelloGetFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs16.x
+      Architectures:
+      - x86_64     
+      Events:
+        Recommendation:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /
+            Method: GET
+            # Auth:
+            #  ApiKeyRequired: true
+            # Auth:
+            #  ApiKeyRequired: true
+            #  Type: Custom
+            #  Authorizers:
+            #   MyCustomAuthorizer:
+            #    FunctionArn: !GetAtt AuthenticateApiKeyFunction.Arn             
+            #  Authorizer:
+            #   Type: TOKEN
+            #   AuthorizerId: myApiKey              
+         
+
+  HelloGetFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs16.x
+      Architectures:
+      - x86_64     
+      Events:
+        Recommendation:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /with-api-key
+            Method: GET
+            Auth:
+             ApiKeyRequired: true  
+
+
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2020
+        # Sourcemap: true # Enabling source maps will create the required NODE_OPTIONS environment variables on your lambda function during sam build
+        EntryPoints:
+        - app.ts

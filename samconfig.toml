@@ -1,0 +1,10 @@
+version = 0.1
+[dev]
+[dev.deploy]
+[dev.deploy.parameters]
+stack_name = "examined-health-new1"
+s3_bucket = "examined-health1"
+region = "us-east-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "MongoUrl=\"value1\" RedisHost=\"value1\" Env=\"prod\" RedisPassword=\"value2\""
